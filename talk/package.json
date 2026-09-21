@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "voices": "bun run voices.ts"
+    "voices": "bun run voices.ts",
+    "synthesize": "bun run synthesize.ts"
   }
 }

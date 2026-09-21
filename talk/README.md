@@ -58,3 +58,20 @@ bun --env-file=.env run voices
 ```
 
 The command prints the available voice libraries as JSON, including their names, versions, and supported languages. No additional packages are required.
+
+## Generate speech
+
+Provide one utterance per JSONL line, with `text` and optional `global_parameters`; see [the example](examples/hello.jsonl). Each line's settings are independent.
+
+```sh
+bun --env-file=.env run synthesize examples/hello.jsonl \
+  --voice tanaka-san_ja_JP \
+  --voice-version 2.0.1 \
+  --output-dir output
+```
+
+Saves one WAV per input line as `0001.wav`, `0002.wav`, and so on.
+
+- Add `--concat output/combined.wav` to also save a combined WAV while keeping individual files (requires `ffmpeg` on `PATH`).
+- Add `--overwrite` to replace existing files.
+- Run `bun run synthesize --help` for all options.
