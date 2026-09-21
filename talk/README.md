@@ -38,3 +38,23 @@ These URLs assume you are connecting from the same computer as VoiSona Talk usin
 The API uses HTTP Basic authentication with your registered email address and API password.
 The local documentation is available while VoiSona Talk is running with the REST API enabled.
 The REST API is in beta, so check the local API reference bundled with your installed application version for its specifications.
+
+### Configure the environment
+
+Provide the following environment variables through a `.env` file in this directory:
+
+| Variable | Value |
+| --- | --- |
+| `VOISONA_API_USERNAME` | Your registered email address |
+| `VOISONA_API_KEY` | The API password configured in VoiSona Talk |
+| `VOISONA_API_URL` | Optional API base URL; defaults to `http://localhost:32766/api/talk/v1` |
+
+## List voice libraries
+
+Run the command from this directory:
+
+```sh
+bun --env-file=.env run voices
+```
+
+The command prints the available voice libraries as JSON, including their names, versions, and supported languages. No additional packages are required.

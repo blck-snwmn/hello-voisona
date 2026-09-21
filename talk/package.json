@@ -1,0 +1,8 @@
+{
+  "name": "voisona-talk",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "voices": "bun run voices.ts"
+  }
+}
