@@ -43,11 +43,11 @@ The REST API is in beta, so check the local API reference bundled with your inst
 
 Provide the following environment variables through a `.env` file in this directory:
 
-| Variable | Value |
-| --- | --- |
-| `VOISONA_API_USERNAME` | Your registered email address |
-| `VOISONA_API_KEY` | The API password configured in VoiSona Talk |
-| `VOISONA_API_URL` | Optional API base URL; defaults to `http://localhost:32766/api/talk/v1` |
+| Variable               | Value                                                                   |
+| ---------------------- | ----------------------------------------------------------------------- |
+| `VOISONA_API_USERNAME` | Your registered email address                                           |
+| `VOISONA_API_KEY`      | The API password configured in VoiSona Talk                             |
+| `VOISONA_API_URL`      | Optional API base URL; defaults to `http://localhost:32766/api/talk/v1` |
 
 ## List voice libraries
 

@@ -43,7 +43,10 @@ async function main() {
 
   const username = Bun.env.VOISONA_API_USERNAME;
   const password = Bun.env.VOISONA_API_KEY;
-  const baseUrl = (Bun.env.VOISONA_API_URL ?? "http://localhost:32766/api/talk/v1").replace(/\/$/, "");
+  const baseUrl = (Bun.env.VOISONA_API_URL ?? "http://localhost:32766/api/talk/v1").replace(
+    /\/$/,
+    "",
+  );
   if (!username || !password) {
     throw new Error("Set VOISONA_API_USERNAME and VOISONA_API_KEY before running this command.");
   }
@@ -55,7 +58,7 @@ async function main() {
         Authorization: `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`,
         "Content-Type": "application/json",
       },
-      body: body ? JSON.stringify(body) : undefined,
+      ...(method === "POST" && body ? { body: JSON.stringify(body) } : {}),
       signal: AbortSignal.timeout(10_000),
     });
     if (!response.ok) throw new Error(`${method} ${path}: HTTP ${response.status}.`);
@@ -73,12 +76,18 @@ async function main() {
       throw new Error(`Line ${lineNumber}: invalid JSON.`);
     }
     const fields = ["text", "analyzed_text", "global_parameters", "phoneme_durations"];
-    if (!data || typeof data !== "object" || Array.isArray(data)
-      || Object.keys(data).some((key) => !fields.includes(key))) {
+    if (
+      !data ||
+      typeof data !== "object" ||
+      Array.isArray(data) ||
+      Object.keys(data).some((key) => !fields.includes(key))
+    ) {
       throw new Error(`Line ${lineNumber}: use an object containing only ${fields.join(", ")}.`);
     }
-    if (!(typeof data.text === "string" && data.text.trim())
-      && !(typeof data.analyzed_text === "string" && data.analyzed_text.trim())) {
+    if (
+      !(typeof data.text === "string" && data.text.trim()) &&
+      !(typeof data.analyzed_text === "string" && data.analyzed_text.trim())
+    ) {
       throw new Error(`Line ${lineNumber}: provide text or analyzed_text.`);
     }
     return [{ lineNumber, data }];
@@ -88,43 +97,67 @@ async function main() {
   const savesFiles = values.destination !== "audio_device";
   const outputDir = resolve(values["output-dir"]);
   const outputFiles = utterances.map(({ lineNumber }) =>
-    resolve(outputDir, `${String(lineNumber).padStart(4, "0")}.wav`));
+    resolve(outputDir, `${String(lineNumber).padStart(4, "0")}.wav`),
+  );
   const concatPath = values.concat ? resolve(values.concat) : undefined;
   if (concatPath && outputFiles.includes(concatPath)) {
     throw new Error("The --concat path must differ from the individual WAV paths.");
   }
-  if (concatPath && !values.overwrite && await Bun.file(concatPath).exists()) {
+  if (concatPath && !values.overwrite && (await Bun.file(concatPath).exists())) {
     throw new Error(`${concatPath} already exists. Use --overwrite to replace it.`);
   }
   if (savesFiles) await mkdir(outputDir, { recursive: true });
 
   for (const [index, { lineNumber, data }] of utterances.entries()) {
     const outputPath = outputFiles[index];
-    if (savesFiles && !values.overwrite && await Bun.file(outputPath).exists()) {
-      throw new Error(`Line ${lineNumber}: ${outputPath} already exists. Use --overwrite to replace it.`);
+    if (savesFiles && !values.overwrite && (await Bun.file(outputPath).exists())) {
+      throw new Error(
+        `Line ${lineNumber}: ${outputPath} already exists. Use --overwrite to replace it.`,
+      );
     }
 
     let requestPath: string | undefined;
     try {
-      const created = await (await request("/speech-syntheses", "POST", {
-        ...data,
-        language: values.language,
-        voice_name: values.voice,
-        voice_version: values["voice-version"],
-        destination: values.destination,
-        ...(values.destination === "file" ? {
-          output_file_path: outputPath,
-          can_overwrite_file: values.overwrite,
-        } : {}),
-      })).json();
+      const created = await (
+        await request("/speech-syntheses", "POST", {
+          ...data,
+          language: values.language,
+          voice_name: values.voice,
+          voice_version: values["voice-version"],
+          destination: values.destination,
+          ...(values.destination === "file"
+            ? {
+                output_file_path: outputPath,
+                can_overwrite_file: values.overwrite,
+              }
+            : {}),
+        })
+      ).json();
+      if (
+        !created ||
+        typeof created !== "object" ||
+        !("uuid" in created) ||
+        typeof created.uuid !== "string"
+      ) {
+        throw new Error("The API response is missing a synthesis UUID.");
+      }
       requestPath = `/speech-syntheses/${encodeURIComponent(created.uuid)}`;
 
       const deadline = Date.now() + 300_000;
       while (true) {
         const status = await (await request(requestPath)).json();
+        if (
+          !status ||
+          typeof status !== "object" ||
+          !("state" in status) ||
+          typeof status.state !== "string"
+        ) {
+          throw new Error("The API response is missing a synthesis state.");
+        }
         if (status.state === "succeeded") break;
         if (status.state === "failed") throw new Error("Speech synthesis failed.");
-        if (Date.now() >= deadline) throw new Error("Speech synthesis timed out after five minutes.");
+        if (Date.now() >= deadline)
+          throw new Error("Speech synthesis timed out after five minutes.");
         await Bun.sleep(250);
       }
 
@@ -134,7 +167,9 @@ async function main() {
       }
       console.log(`Line ${lineNumber}: ${savesFiles ? outputPath : "played"}`);
     } catch (error) {
-      throw new Error(`Line ${lineNumber}: ${error instanceof Error ? error.message : "Speech synthesis failed."}`);
+      throw new Error(
+        `Line ${lineNumber}: ${error instanceof Error ? error.message : "Speech synthesis failed."}`,
+      );
     } finally {
       if (requestPath) {
         await request(requestPath, "DELETE").catch(() => {
@@ -148,14 +183,35 @@ async function main() {
     const temporaryDir = await mkdtemp(resolve(outputDir, ".concat-"));
     try {
       const listPath = resolve(temporaryDir, "inputs.txt");
-      await writeFile(listPath, outputFiles.map((path) => `file '../${basename(path)}'\n`).join(""));
+      await writeFile(
+        listPath,
+        outputFiles.map((path) => `file '../${basename(path)}'\n`).join(""),
+      );
       await mkdir(dirname(concatPath), { recursive: true });
-      const ffmpeg = Bun.spawn([
-        "ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin",
-        "-f", "concat", "-safe", "0", "-i", listPath,
-        "-c", "copy", "-f", "wav", values.overwrite ? "-y" : "-n", concatPath,
-      ], { stdin: "ignore", stdout: "ignore", stderr: "inherit" });
-      if (await ffmpeg.exited !== 0) throw new Error("WAV concatenation failed. Individual WAV files have been kept.");
+      const ffmpeg = Bun.spawn(
+        [
+          "ffmpeg",
+          "-hide_banner",
+          "-loglevel",
+          "error",
+          "-nostdin",
+          "-f",
+          "concat",
+          "-safe",
+          "0",
+          "-i",
+          listPath,
+          "-c",
+          "copy",
+          "-f",
+          "wav",
+          values.overwrite ? "-y" : "-n",
+          concatPath,
+        ],
+        { stdin: "ignore", stdout: "ignore", stderr: "inherit" },
+      );
+      if ((await ffmpeg.exited) !== 0)
+        throw new Error("WAV concatenation failed. Individual WAV files have been kept.");
       console.log(`Combined: ${concatPath}`);
     } finally {
       await rm(temporaryDir, { recursive: true, force: true });

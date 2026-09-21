@@ -22,6 +22,8 @@ try {
 
   console.log(JSON.stringify(await response.json(), null, 2));
 } catch {
-  console.error("Could not read the API response. Check that VoiSona Talk is running with the REST API enabled.");
+  console.error(
+    "Could not read the API response. Check that VoiSona Talk is running with the REST API enabled.",
+  );
   process.exit(1);
 }

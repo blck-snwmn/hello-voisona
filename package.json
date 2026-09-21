@@ -1,0 +1,22 @@
+{
+  "name": "hello-voisona",
+  "private": true,
+  "workspaces": [
+    "talk"
+  ],
+  "type": "module",
+  "scripts": {
+    "fmt": "oxfmt --write .",
+    "fmt:check": "oxfmt --check .",
+    "lint": "oxlint --deny-warnings .",
+    "lint:fix": "oxlint --deny-warnings . --fix"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.2",
+    "oxfmt": "0.70.0",
+    "oxlint": "1.85.0",
+    "oxlint-tsgolint": "7.0.2002",
+    "typescript": "7.0.2"
+  },
+  "packageManager": "bun@1.4.2"
+}
